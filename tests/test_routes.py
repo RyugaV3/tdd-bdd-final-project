@@ -83,7 +83,8 @@ class TestProductRoutes(TestCase):
         products = []
         for _ in range(count):
             test_product = ProductFactory()
-            response = self.client.post(BASE_URL, json=test_product.serialize())
+            response = self.client.post(
+                BASE_URL, json=test_product.serialize())
             self.assertEqual(
                 response.status_code, status.HTTP_201_CREATED, "Could not create test product"
             )
@@ -135,14 +136,14 @@ class TestProductRoutes(TestCase):
         #
 
         # # Check that the location header was correct
-        # response = self.client.get(location)
-        # self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # new_product = response.get_json()
-        # self.assertEqual(new_product["name"], test_product.name)
-        # self.assertEqual(new_product["description"], test_product.description)
-        # self.assertEqual(Decimal(new_product["price"]), test_product.price)
-        # self.assertEqual(new_product["available"], test_product.available)
-        # self.assertEqual(new_product["category"], test_product.category.name)
+        response = self.client.get(location)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        new_product = response.get_json()
+        self.assertEqual(new_product["name"], test_product.name)
+        self.assertEqual(new_product["description"], test_product.description)
+        self.assertEqual(Decimal(new_product["price"]), test_product.price)
+        self.assertEqual(new_product["available"], test_product.available)
+        self.assertEqual(new_product["category"], test_product.category.name)
 
     def test_create_product_with_no_name(self):
         """It should not Create a Product without a name"""
@@ -156,16 +157,124 @@ class TestProductRoutes(TestCase):
     def test_create_product_no_content_type(self):
         """It should not Create a Product with no Content-Type"""
         response = self.client.post(BASE_URL, data="bad data")
-        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
     def test_create_product_wrong_content_type(self):
         """It should not Create a Product with wrong Content-Type"""
-        response = self.client.post(BASE_URL, data={}, content_type="plain/text")
-        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        response = self.client.post(
+            BASE_URL, data={}, content_type="plain/text")
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
     #
     # ADD YOUR TEST CASES HERE
     #
+
+    # ----------------------------------------------------------
+    # TEST READ
+    # ----------------------------------------------------------
+    def test_get_product(self):
+        """It should Read a single product"""
+        test_product = self._create_products(1)[0]
+
+        response = self.client.get(
+            f"{BASE_URL}/{test_product.id}"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK
+        )
+
+        data = response.get_json()
+        self.assertEqual(data, test_product.serialize())
+
+    def test_get_product_not_found(self):
+        """It should not Get a product thats not found"""
+        response = self.client.get(f"{BASE_URL}/0")
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+        data = response.get_json()
+        self.assertIn("was not found", data["message"])
+
+    # ----------------------------------------------------------
+    # TEST UPDATE
+    # ----------------------------------------------------------
+    def test_update_product(self):
+        """It should Update an existing product"""
+        test_product = self._create_products(1)[0]
+
+        # Change the product description
+        test_product.description = "Updated product description"
+
+        # Send a PUT request
+        response = self.client.put(
+            f"{BASE_URL}/{test_product.id}",
+            json=test_product.serialize()
+        )
+
+        # Verify successful update
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK
+        )
+
+        # Verify the returned product data
+        updated_product = response.get_json()
+
+        self.assertEqual(
+            updated_product["description"],
+            "Updated product description"
+        )
+
+        self.assertEqual(
+            updated_product["id"],
+            test_product.id
+        )
+    
+    def test_update_product_not_found(self):
+        """It should return 404 when updating a nonexistent product"""
+        test_product = ProductFactory()
+
+        response = self.client.put(
+            f"{BASE_URL}/0",
+            json=test_product.serialize()
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+    
+    # ----------------------------------------------------------
+    # TEST DELETE
+    # ----------------------------------------------------------
+    def test_delete_product(self):
+        """It should Delete a product"""
+        test_product = self._create_products(1)[0]
+
+        # Confirm the product exists
+        self.assertEqual(self.get_product_count(), 1)
+
+        # Delete the product 
+        response = self.client.delete(
+            f"{BASE_URL}/{test_product.id}"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT
+        )
+
+        # Verify the product was removed
+        self.assertIsNone(Product.find(test_product.id))
 
     ######################################################################
     # Utility functions

@@ -72,7 +72,12 @@ class TestProductModel(unittest.TestCase):
 
     def test_create_a_product(self):
         """It should Create a product and assert that it exists"""
-        product = Product(name="Fedora", description="A red hat", price=12.50, available=True, category=Category.CLOTHS)
+        product = Product(
+            name="Fedora",
+            description="A red hat",
+            price=12.50,
+            available=True,
+            category=Category.CLOTHS)
         self.assertEqual(str(product), "<Product Fedora id=[None]>")
         self.assertTrue(product is not None)
         self.assertEqual(product.id, None)
@@ -141,14 +146,16 @@ class TestProductModel(unittest.TestCase):
         products = Product.all()
         self.assertEqual(len(products), 1)
         self.assertEqual(products[0].id, product_id)
-        self.assertEqual(products[0].description, "Updated product description")
+        self.assertEqual(
+            products[0].description,
+            "Updated product description")
 
     def test_delete_a_product(self):
         """It should Delete a product"""
         product = ProductFactory()
         product.id = None
         product.create()
-        
+
         self.assertEqual(len(Product.all()), 1)
 
         product.delete()
@@ -163,7 +170,7 @@ class TestProductModel(unittest.TestCase):
         for product in ProductFactory.create_batch(5):
             product.id = None
             product.create()
-        
+
         products = product.all()
         self.assertEqual(len(products), 5)
 
@@ -190,7 +197,7 @@ class TestProductModel(unittest.TestCase):
     def test_find_by_availability(self):
         """It should Find products by Availability"""
         products = ProductFactory.create_batch(10)
-        
+
         for product in products:
             product.id = None
             product.create()
@@ -205,7 +212,7 @@ class TestProductModel(unittest.TestCase):
         self.assertEqual(len(found_products), expected_count)
         for product in found_products:
             self.assertEqual(product.available, available)
-    
+
     def test_find_by_category(self):
         """It should Find products by Category"""
         products = ProductFactory.create_batch(10)
@@ -213,7 +220,7 @@ class TestProductModel(unittest.TestCase):
         for product in products:
             product.id = None
             product.create()
-        
+
         category = products[0].category
         expected_count = sum(
             product.category == category for product in products

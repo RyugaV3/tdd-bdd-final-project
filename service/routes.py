@@ -58,7 +58,9 @@ def check_content_type(content_type):
     if request.headers["Content-Type"] == content_type:
         return
 
-    app.logger.error("Invalid Content-Type: %s", request.headers["Content-Type"])
+    app.logger.error(
+        "Invalid Content-Type: %s",
+        request.headers["Content-Type"])
     abort(
         status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
         f"Content-Type must be {content_type}",
@@ -89,9 +91,12 @@ def create_products():
     #
     # Uncomment this line of code once you implement READ A PRODUCT
     #
-    # location_url = url_for("get_products", product_id=product.id, _external=True)
-    location_url = "/"  # delete once READ is implemented
-    return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
+    location_url = url_for(
+        "get_products",
+        product_id=product.id,
+        _external=True)
+    return jsonify(message), status.HTTP_201_CREATED, {
+        "Location": location_url}
 
 
 ######################################################################
@@ -109,6 +114,18 @@ def create_products():
 #
 # PLACE YOUR CODE HERE TO READ A PRODUCT
 #
+@app.route("/products/<int:product_id>", methods=["GET"])
+def get_products(product_id):
+    """Retrieve a single product"""
+    app.logger.info("Request to Read a product with id: %s", product_id)
+
+    product = Product.find(product_id)
+
+    if product is None:
+        abort(status.HTTP_404_NOT_FOUND,
+              f"Product with id {product_id} was not found.")
+
+    return jsonify(product.serialize()), status.HTTP_200_OK
 
 ######################################################################
 # U P D A T E   A   P R O D U C T
@@ -117,6 +134,32 @@ def create_products():
 #
 # PLACE YOUR CODE TO UPDATE A PRODUCT HERE
 #
+@app.route("/products/<int:product_id>", methods=["PUT"])
+def update_products(product_id):
+    """Update an existing product"""
+    app.logger.info("Request to Update product with id: %s", product_id)
+
+    # Find the existing product
+    product = Product.find(product_id)
+
+    if product is None:
+        abort(
+            status.HTTP_404_NOT_FOUND,
+            f"Product with id {product_id} was not found."
+        )
+    
+    # Validate the incoming Content-Type
+    check_content_type("application/json")
+
+    # Deserialize the incoming data into the product
+    data = request.get_json()
+    product.deserialize(data)
+
+    # Save the changes
+    product.update()
+
+    # Return the updated product
+    return jsonify(product.serialize()), status.HTTP_200_OK
 
 ######################################################################
 # D E L E T E   A   P R O D U C T
@@ -126,3 +169,14 @@ def create_products():
 #
 # PLACE YOUR CODE TO DELETE A PRODUCT HERE
 #
+@app.route("/products/<int:product_id>", methods=["DELETE"])
+def delete_products(product_id):
+    """Delete a product"""
+    app.logger.info("Request to Delete Product with id: %s", product_id)
+
+    product = Product.find(product_id)
+
+    if product is not None:
+        product.delete()
+
+    return "", status.HTTP_204_NO_CONTENT
