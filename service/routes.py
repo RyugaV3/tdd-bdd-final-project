@@ -20,7 +20,7 @@ Product Store Service with UI
 """
 from flask import jsonify, request, abort
 from flask import url_for  # noqa: F401 pylint: disable=unused-import
-from service.models import Product
+from service.models import Product, Category
 from service.common import status  # HTTP Status Codes
 from . import app
 
@@ -106,6 +106,31 @@ def create_products():
 #
 # PLACE YOUR CODE TO LIST ALL PRODUCTS HERE
 #
+@app.route("/products", methods=["GET"])
+def list_products():
+    """List all products with optional filters"""
+    app.logger.info("Request to List Products...")
+
+    name = request.args.get("name")
+    category = request.args.get("category")
+    available = request.args.get("available")
+
+    if name:
+        products = Product.find_by_name(name)
+    elif category:
+        try:
+            products = Product.find_by_category(Category[category])
+        except KeyError:
+            abort(status.HTTP_400_BAD_REQUEST, "Invalid category")
+    elif available is not None:
+        is_available = available.lower() == "true"
+        products = Product.find_by_availability(is_available)
+    else:
+        products = Product.all()
+
+    results = [product.serialize() for product in products]
+
+    return jsonify(results), status.HTTP_200_OK
 
 ######################################################################
 # R E A D   A   P R O D U C T
@@ -114,6 +139,8 @@ def create_products():
 #
 # PLACE YOUR CODE HERE TO READ A PRODUCT
 #
+
+
 @app.route("/products/<int:product_id>", methods=["GET"])
 def get_products(product_id):
     """Retrieve a single product"""
@@ -134,6 +161,8 @@ def get_products(product_id):
 #
 # PLACE YOUR CODE TO UPDATE A PRODUCT HERE
 #
+
+
 @app.route("/products/<int:product_id>", methods=["PUT"])
 def update_products(product_id):
     """Update an existing product"""
@@ -147,7 +176,7 @@ def update_products(product_id):
             status.HTTP_404_NOT_FOUND,
             f"Product with id {product_id} was not found."
         )
-    
+
     # Validate the incoming Content-Type
     check_content_type("application/json")
 

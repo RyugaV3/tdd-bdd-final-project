@@ -28,10 +28,12 @@ import os
 import logging
 from decimal import Decimal
 from unittest import TestCase
+from urllib.parse import quote_plus
 from service import app
 from service.common import status
 from service.models import db, init_db, Product
 from tests.factories import ProductFactory
+
 
 # Disable all but critical errors during normal test run
 # uncomment for debugging failing tests
@@ -238,7 +240,7 @@ class TestProductRoutes(TestCase):
             updated_product["id"],
             test_product.id
         )
-    
+
     def test_update_product_not_found(self):
         """It should return 404 when updating a nonexistent product"""
         test_product = ProductFactory()
@@ -252,7 +254,7 @@ class TestProductRoutes(TestCase):
             response.status_code,
             status.HTTP_404_NOT_FOUND
         )
-    
+
     # ----------------------------------------------------------
     # TEST DELETE
     # ----------------------------------------------------------
@@ -260,14 +262,15 @@ class TestProductRoutes(TestCase):
         """It should Delete a product"""
         test_product = self._create_products(1)[0]
 
-        # Confirm the product exists
-        self.assertEqual(self.get_product_count(), 1)
+        # Verify that the product exists
+        self.assertIsNotNone(Product.find(test_product.id))
 
-        # Delete the product 
+        # Delete the product
         response = self.client.delete(
             f"{BASE_URL}/{test_product.id}"
         )
 
+        # Verify the expected HTTP status
         self.assertEqual(
             response.status_code,
             status.HTTP_204_NO_CONTENT
@@ -275,6 +278,104 @@ class TestProductRoutes(TestCase):
 
         # Verify the product was removed
         self.assertIsNone(Product.find(test_product.id))
+
+    # ----------------------------------------------------------
+    # TEST LIST ALL
+    # ----------------------------------------------------------
+    def test_list_all_products(self):
+        """It should List all products"""
+        self._create_products(5)
+
+        response = self.client.get(BASE_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.get_json()), 5)
+
+    # ----------------------------------------------------------
+    # TEST LIST BY NAME
+    # ----------------------------------------------------------
+    def test_list_by_name(self):
+        """It should List products by Name"""
+        products = self._create_products(5)
+        name = products[0].name
+
+        expected_count = sum(
+            product.name == name for product in products
+        )
+
+        response = self.client.get(
+            f"{BASE_URL}?name={quote_plus(name)}"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.get_json()
+        self.assertEqual(len(data), expected_count)
+
+        for product in data:
+            self.assertEqual(product["name"], name)
+
+    # ----------------------------------------------------------
+    # TEST LIST BY CATEGORY
+    # ----------------------------------------------------------
+    def test_list_by_category(self):
+        """It should List products by Category"""
+        products = self._create_products(10)
+        category = products[0].category
+
+        expected_count = sum(
+            product.category == category for product in products
+        )
+
+        response = self.client.get(
+            f"{BASE_URL}?category={category.name}"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.get_json()
+        self.assertEqual(len(data), expected_count)
+
+        for product in data:
+            self.assertEqual(product["category"], category.name)
+
+    # ----------------------------------------------------------
+    # TEST INVALID CATEGORY
+    # ----------------------------------------------------------
+    def test_list_by_invalid_category(self):
+        """It should return 400 for an invalid category"""
+        response = self.client.get(
+            f"{BASE_URL}?category=INVALID_CATEGORY"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST
+        )
+
+    # ----------------------------------------------------------
+    # TEST LIST BY AVAILABILITY
+    # ----------------------------------------------------------
+    def test_list_by_availability(self):
+        """It should List products by Availability"""
+        products = self._create_products(10)
+        available = products[0].available
+
+        expected_count = sum(
+            product.available == available for product in products
+        )
+
+        response = self.client.get(
+            f"{BASE_URL}?available={str(available).lower()}"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.get_json()
+        self.assertEqual(len(data), expected_count)
+
+        for product in data:
+            self.assertEqual(product["available"], available)
 
     ######################################################################
     # Utility functions

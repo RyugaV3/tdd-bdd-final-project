@@ -27,7 +27,7 @@ import os
 import logging
 import unittest
 from decimal import Decimal
-from service.models import Product, Category, db
+from service.models import Product, Category, DataValidationError, db
 from service import app
 from tests.factories import ProductFactory
 
@@ -171,7 +171,7 @@ class TestProductModel(unittest.TestCase):
             product.id = None
             product.create()
 
-        products = product.all()
+        products = Product.all()
         self.assertEqual(len(products), 5)
 
     def test_find_by_name(self):
@@ -231,3 +231,38 @@ class TestProductModel(unittest.TestCase):
         self.assertEqual(len(found_products), expected_count)
         for product in found_products:
             self.assertEqual(product.category, category)
+
+    def test_deserialize_invalid_availability(self):
+        """It should reject a non-boolean availability value"""
+        product = ProductFactory()
+        data = product.serialize()
+
+        data["available"] = "True"
+
+        with self.assertRaises(DataValidationError):
+            product.deserialize(data)
+
+    def test_deserialize_missing_name(self):
+        """It should reject product data missing a required name"""
+        product = ProductFactory()
+        data = product.serialize()
+
+        del data["name"]
+
+        with self.assertRaises(DataValidationError):
+            product.deserialize(data)
+
+    def test_update_without_id(self):
+        """It should reject updating a product without an ID"""
+        product = ProductFactory()
+        product.id = None
+
+        with self.assertRaises(DataValidationError):
+            product.update()
+
+    def test_deserialize_no_data(self):
+        """It should reject a missing request body"""
+        product = Product()
+
+        with self.assertRaises(DataValidationError):
+            product.deserialize(None)
